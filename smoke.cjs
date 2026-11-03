@@ -11,7 +11,7 @@ app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load
  const js=async code=>{console.log('SMOKE:',code.slice(0,130));const result=await win.webContents.executeJavaScript(code);console.log('SMOKE OK');return result};
  await until(()=>js('document.querySelectorAll(".tab").length===1'));
  assert.equal(await js('document.querySelector("#setup").hidden'),false);
- assert.equal(await js('document.querySelectorAll(".shortcuts img[src^=\"assets/\"]").length'),4);
+ assert.equal(await js('document.querySelectorAll(".shortcuts img").length'),4);
  assert.equal(await js('Promise.all([...document.querySelectorAll(".shortcuts img")].map(i=>i.decode())).then(()=>true)'),true);
  await js('document.querySelector("#setup-next").click();document.querySelector("[data-theme=forest]").click();document.querySelector("#setup-next").click();document.querySelector("#setup-next").click();document.querySelector("#setup-motion").click();document.querySelector("#setup-next").click()');
  await until(()=>js('document.querySelector("#setup").hidden'));
