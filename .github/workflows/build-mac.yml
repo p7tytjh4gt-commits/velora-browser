@@ -1,0 +1,54 @@
+name: Build Mac DMG
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+concurrency:
+  group: velora-mac-release
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build universal Mac installer
+        run: npm run dist:mac -- --universal
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Save build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Velora-Mac-DMG
+          path: dist/*.dmg
+          if-no-files-found: error
+      - name: Publish downloadable release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo 'Tag must match package.json version.'
+            exit 1
+          fi
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Velora $version" --notes 'Early prototype for Apple Silicon and Intel Macs. Unsigned and not notarized. No automatic security updates. Download the DMG below.'
+          fi
+          gh release upload "$tag" dist/*.dmg --repo "$GITHUB_REPOSITORY" --clobber

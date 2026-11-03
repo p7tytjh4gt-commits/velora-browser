@@ -1,0 +1,3 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');const {destination,allowed}=require('./core');
+test('URL and search routing',()=>{assert.equal(destination('example.com'),'https://example.com');assert.equal(destination('hello world'),'https://duckduckgo.com/?q=hello%20world');assert.equal(destination('https://example.com/a'),'https://example.com/a');assert.equal(destination(''),'')});
+test('privileged schemes cannot be opened',()=>{for(const url of ['file:///etc/passwd','javascript:alert(1)','data:text/html,x','mailto:a@b.com']){assert.equal(destination(url),'');assert.equal(allowed(url),false)}assert.equal(allowed('https://example.com'),true)});
