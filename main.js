@@ -4,7 +4,7 @@ const {destination,allowed}=require('./core');
 let win,tabs=[],active=null,seq=0,overlay=false,bookmarks=[],closed=[],eco=true,closing=false;
 const file=()=>path.join(app.getPath('userData'),'velora.json');
 function save(){if(!win||closing)return;fs.writeFileSync(file(),JSON.stringify({bookmarks,eco,tabs:tabs.map(t=>({url:t.url,title:t.title})),active:tabs.findIndex(t=>t.id===active)}))}
-function emit(){if(win&&!win.isDestroyed())win.webContents.send('state',{tabs:tabs.map(({id,url,title,sleeping,muted,loading,error,view})=>({id,url,title,sleeping,muted,loading,error,audible:!!view&&!view.webContents.isDestroyed()&&view.webContents.isCurrentlyAudible()})),active,bookmarks,eco})}
+function emit(){if(win&&!win.isDestroyed())win.webContents.send('state',{tabs:tabs.map(({id,url,title,sleeping,muted,loading,error,favicon,view})=>({id,url,title,sleeping,muted,loading,error,favicon,audible:!!view&&!view.webContents.isDestroyed()&&view.webContents.isCurrentlyAudible()})),active,bookmarks,eco})}
 function bounds(){if(!win)return;let [w,h]=win.getContentSize();for(const t of tabs)if(t.view){t.view.setVisible(t.id===active&&!overlay);t.view.setBounds({x:244,y:88,width:Math.max(1,w-244),height:Math.max(1,h-88)})}}
 function destroy(t){if(t.view){win.contentView.removeChildView(t.view);t.view.webContents.close();t.view=null}}
 function mount(t){
@@ -14,6 +14,7 @@ function mount(t){
  wc.setAudioMuted(!!t.muted);
  for(const event of ['will-navigate','will-redirect'])wc.on(event,(e,url)=>{if(!allowed(url))e.preventDefault()});
  wc.setWindowOpenHandler(({url})=>{if(allowed(url))newTab(url);return {action:'deny'}});
+ wc.on('page-favicon-updated',(_event,urls)=>{t.favicon=urls.find(url=>/^https:\/\//.test(url))||'';emit()});
  wc.on('media-started-playing',emit);wc.on('media-paused',emit);
  wc.on('page-title-updated',(_,title)=>{t.title=title;emit()});
  const update=()=>{t.url=wc.getURL()||t.url;emit();save()};wc.on('did-navigate',update);wc.on('did-navigate-in-page',update);
@@ -28,7 +29,7 @@ function newTab(url=''){let t={id:++seq,url:allowed(url)?url:'',title:url?'Loadi
 function shortcut(i){if(i.type!=='keyDown')return false;let mod=i.meta||i.control,k=i.key.toLowerCase();if(!mod)return false;if(k==='l'||k==='k'){overlay=true;bounds();win.webContents.send('command');return true}if(k==='t'){newTab();return true}if(k==='w'){action('close',active);return true}if(k==='r'){action('reload');return true}return false}
 function action(kind,value){const t=tabs.find(t=>t.id===active);switch(kind){
  case 'new':newTab();break;
- case 'go':{const url=destination(value);if(url&&t){t.url=url;t.error='';t.title='Loading…';if(t.view)t.view.webContents.loadURL(url).catch(()=>{});else mount(t);overlay=false;bounds()}break}
+ case 'go':{const url=destination(value);if(url&&t){t.url=url;t.favicon='';t.error='';t.title='Loading…';if(t.view)t.view.webContents.loadURL(url).catch(()=>{});else mount(t);overlay=false;bounds()}break}
  case 'select':if(tabs.some(t=>t.id===value))select(value);break;
  case 'close':{let index=tabs.findIndex(t=>t.id===value);if(index<0)break;const item=tabs[index];closed.push({url:item.url,title:item.title});closed=closed.slice(-20);destroy(item);tabs.splice(index,1);if(!tabs.length)newTab();else if(active===value)select(tabs[Math.min(index,tabs.length-1)].id);break}
  case 'reopen':{const item=closed.pop();if(item)newTab(item.url);break}
@@ -36,9 +37,9 @@ function action(kind,value){const t=tabs.find(t=>t.id===active);switch(kind){
  case 'forward':if(t?.view?.webContents.navigationHistory.canGoForward())t.view.webContents.navigationHistory.goForward();break;
  case 'reload':if(t?.view)t.view.webContents.reload();else if(t?.url)mount(t);break;
  case 'mute':if(t){t.muted=!t.muted;t.view?.webContents.setAudioMuted(t.muted)}break;
- case 'bookmark':if(t?.url){const n=bookmarks.findIndex(b=>b.url===t.url);if(n<0)bookmarks.push({url:t.url,title:t.title});else bookmarks.splice(n,1)}break;
+ case 'bookmark':if(t?.url){const n=bookmarks.findIndex(b=>b.url===t.url);if(n<0)bookmarks.push({url:t.url,title:t.title,favicon:t.favicon});else bookmarks.splice(n,1)}break;
  case 'open-bookmark':if(allowed(value))newTab(value);break;
- case 'overlay':overlay=!!value;bounds();break;
+ case 'overlay':overlay=!!value;bounds();return;
  case 'eco':eco=!eco;break;
  case 'sleep':for(const item of tabs)if(item.id!==active&&item.view&&!item.view.webContents.isCurrentlyAudible()){destroy(item);item.sleeping=true}break;
  case 'zoom-in':if(t?.view)t.view.webContents.setZoomLevel(t.view.webContents.getZoomLevel()+0.5);break;
@@ -48,7 +49,7 @@ app.whenReady().then(()=>{
  session.fromPartition('persist:velora').setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
  session.fromPartition('persist:velora').setPermissionCheckHandler(()=>false);
  session.fromPartition('persist:velora').on('will-download',async(e,item)=>{const result=await dialog.showSaveDialog(win,{defaultPath:path.join(app.getPath('downloads'),path.basename(item.getFilename()))});if(result.canceled)item.cancel();else item.setSavePath(result.filePath)});
- win=new BrowserWindow({width:1360,height:900,minWidth:900,minHeight:600,title:'Velora',backgroundColor:'#0c0e14',titleBarStyle:'hiddenInset',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+ win=new BrowserWindow({width:1360,height:900,minWidth:900,minHeight:600,title:'Velora',backgroundColor:'#101813',icon:path.join(__dirname,'assets','icon.png'),titleBarStyle:'hiddenInset',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
  ipcMain.handle('action',(e,kind,value)=>{if(e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame)return;action(kind,value)});
  win.webContents.on('before-input-event',(e,i)=>{if(shortcut(i))e.preventDefault()});

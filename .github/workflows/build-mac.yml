@@ -26,6 +26,8 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test
+      - name: Verify real Electron app
+        run: npm run test:app
       - name: Build universal Mac installer
         run: npm run dist:mac -- --universal
         env:
