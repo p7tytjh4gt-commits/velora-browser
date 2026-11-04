@@ -8,7 +8,7 @@ const timeout=setTimeout(()=>finish(new Error('App smoke check timed out')),4500
 function finish(error){if(finished)return;finished=true;clearTimeout(timeout);if(error)console.error(error);else console.log('PASS: real Electron startup, local assets, setup, navigation, sandbox, tabs, bookmarks, mute, focus bounds, workspaces, tab search, bookmark import, search settings, custom engine and update popup.');server?.close();app.exit(error?1:0)}
 async function until(fn){for(let i=0;i<150;i++){const result=await fn();if(result)return result;await new Promise(r=>setTimeout(r,50))}throw Error('Expected app state did not appear')}
 app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load',async()=>{try{
- win.webContents.on('console-message',(_event,details)=>console.log('RENDERER:',details?.message||details));
+ win.webContents.on('console-message',(_event,...details)=>console.log('RENDERER:',...details));
  const js=async code=>{console.log('SMOKE:',code.slice(0,130));const result=await win.webContents.executeJavaScript(code);console.log('SMOKE OK');return result};
  await until(()=>js('document.querySelectorAll(".tab").length===1'));
  assert.equal(await js('document.querySelector("#setup").hidden'),false);
