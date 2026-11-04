@@ -1,4 +1,4 @@
-# Velora 0.4 · Less friction. More flow.
+# Velora 0.5 · Less friction. More flow.
 
 A personal Electron/Chromium browser for Apple Silicon and Intel Macs, now matching the Velora website’s dark green look.
 
@@ -55,3 +55,15 @@ Control icons: Phosphor (MIT). Brand marks: Simple Icons (CC0), Phosphor and Lob
 - The command bar can mute other tabs or sleep quiet background pages.
 
 These are workflow and presentation advantages, not claims of better speed, security, battery life or overall compatibility than Chrome. Chrome has a mature extension ecosystem, updates and sync; those remain material gaps for Velora.
+
+## Version 0.5
+The interface now uses compact Mac-style controls, system light/dark appearance, ordinary typography and restrained motion. Search settings include eight presets and one custom engine; a custom engine must provide an HTTPS query URL containing `{query}`. POST-only engines are not supported. Engine selection persists in the local profile.
+
+An update window appears once after installing a different app version and dismisses persistently. It can be reopened in Settings. Release notes are bundled, not downloaded or generated from user browsing data. CI rejects a version that has no corresponding release-notes entry. Fresh installs go through setup; the update popup starts on subsequent versions.
+
+### Passkeys: known blocker
+This release does NOT fix platform passkeys in the unsigned distribution. Apple requires a browser entitlement and signing to request passkeys for arbitrary relying parties. The built-in Electron associated-domain flow also requires signing and website association; switching it on in an unsigned build is not a functional fix. We do not spoof authenticator availability or weaken origin checks.
+
+An Open in default browser button is provided in the toolbar and Settings. It opens the current HTTP/HTTPS page externally; authentication and cookies are not transferred back to Velora. A standard WebAuthn account chooser is wired for security-key account-selection events, but physical hardware-key and platform-passkey ceremonies have not been verified.
+
+References: https://www.electronjs.org/docs/latest/api/app#appconfigurewebauthnoptions-macos and https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.web-browser.public-key-credential

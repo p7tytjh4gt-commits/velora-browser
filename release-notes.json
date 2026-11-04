@@ -1,0 +1,18 @@
+[
+  {
+    "version": "0.5.0",
+    "title": "A more familiar Velora",
+    "changes": [
+      "A quieter Mac-style interface, with system light and dark appearance and shorter, clearer labels.",
+      "Choose Google, Bing, DuckDuckGo, Brave Search, Ecosia, Yahoo, Startpage or Kagi, or add your own HTTPS search URL.",
+      "A What’s new window appears once after installing a new app version. You can reopen it in Settings.",
+      "An Open in default browser button for sites that need passkeys. Signing in there does not sign you into Velora."
+    ],
+    "note": "Passkeys are still unavailable in this unsigned Mac build. Browser-wide passkey access requires Apple’s approved browser entitlement and signing."
+  },
+  {
+    "version": "0.4.0",
+    "title": "More ways to organize your tabs",
+    "changes": ["Named workspaces, a command bar that finds tabs and bookmarks, Focus mode, and bookmark import from Chrome HTML exports."]
+  }
+]

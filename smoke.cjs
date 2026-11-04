@@ -2,9 +2,10 @@
 const {app,webContents}=require('electron');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
 app.setPath('userData',fs.mkdtempSync(path.join(os.tmpdir(),'velora-smoke-')));
+fs.writeFileSync(path.join(app.getPath('userData'),'velora.json'),JSON.stringify({lastSeenVersion:'0.4.0'}));
 let server,finished=false;
 const timeout=setTimeout(()=>finish(new Error('App smoke check timed out')),45000);
-function finish(error){if(finished)return;finished=true;clearTimeout(timeout);if(error)console.error(error);else console.log('PASS: real Electron startup, local assets, setup, navigation, sandbox, tabs, bookmarks, mute, focus bounds, workspaces, tab search and bookmark import.');server?.close();app.exit(error?1:0)}
+function finish(error){if(finished)return;finished=true;clearTimeout(timeout);if(error)console.error(error);else console.log('PASS: real Electron startup, local assets, setup, navigation, sandbox, tabs, bookmarks, mute, focus bounds, workspaces, tab search, bookmark import, search settings, custom engine and update popup.');server?.close();app.exit(error?1:0)}
 async function until(fn){for(let i=0;i<150;i++){const result=await fn();if(result)return result;await new Promise(r=>setTimeout(r,50))}throw Error('Expected app state did not appear')}
 app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load',async()=>{try{
  win.webContents.on('console-message',(_event,details)=>console.log('RENDERER:',details?.message||details));
@@ -15,6 +16,15 @@ app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load
  assert.equal(await js('Promise.all([...document.querySelectorAll(".shortcuts img")].map(i=>i.decode())).then(()=>true)'),true);
  await js('document.querySelector("#setup-next").click();document.querySelector("[data-theme=forest]").click();document.querySelector("#setup-next").click();document.querySelector("#setup-next").click();document.querySelector("#setup-motion").click();document.querySelector("#setup-next").click()');
  await until(()=>js('document.querySelector("#setup").hidden'));
+ await until(()=>js('document.querySelector("#whatsnew-dialog").open'));
+ assert.equal(await js('document.querySelector("#whatsnew-version").textContent'),'Velora '+require('./package.json').version);
+ await js('document.querySelector("#whatsnew-done").click()');
+ await until(()=>JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'velora.json'),'utf8')).lastSeenVersion===require('./package.json').version);
+ await js('document.querySelector("#preferences").click();document.querySelector("#engine-select").value="bing";document.querySelector("#engine-select").dispatchEvent(new Event("change"))');
+ await until(()=>js('document.querySelector("#command-engine").textContent.includes("Bing")'));
+ await js('document.querySelector("#engine-name").value="Example Search";document.querySelector("#engine-template").value="https://example.com/search?q={query}";document.querySelector("#engine-form").dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}))');
+ await until(()=>js('document.querySelector("#engine-result").textContent==="Search engine saved."'));
+ await js('document.querySelector("#settings-close").click()');
  server=http.createServer((_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Velora smoke page</title><h1>Real page navigation</h1>')});await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const url='http://127.0.0.1:'+server.address().port;
  await js('window.velora.action("go",'+JSON.stringify(url)+')');
@@ -38,6 +48,8 @@ app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load
  assert.equal(await js('document.querySelectorAll("#bookmarks button").length'),2);
  await js('window.velora.action("workspace-move","study")');await until(()=>js('document.querySelector("#move-tab").value==="personal"'));
  const profile=JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'velora.json'),'utf8'));assert.ok(profile.workspaces.some(w=>w.name==='Research'));assert.ok(profile.tabs.some(t=>t.workspaceId==='study'));
+ assert.equal(profile.searchEngineId,'custom');assert.equal(profile.customEngine.template,'https://example.com/search?q={query}');assert.equal(profile.lastSeenVersion,require('./package.json').version);
+ assert.equal(await js('document.querySelector("#whatsnew-dialog").open'),false);
  finish();
  }catch(error){finish(error)}})});
 require('./main.js');
