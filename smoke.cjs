@@ -4,7 +4,7 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http
 app.setPath('userData',fs.mkdtempSync(path.join(os.tmpdir(),'velora-smoke-')));
 let server,finished=false;
 const timeout=setTimeout(()=>finish(new Error('App smoke check timed out')),45000);
-function finish(error){if(finished)return;finished=true;clearTimeout(timeout);if(error)console.error(error);else console.log('PASS: real Electron startup, local assets, setup, navigation, sandbox, tabs, bookmarks and mute.');server?.close();app.exit(error?1:0)}
+function finish(error){if(finished)return;finished=true;clearTimeout(timeout);if(error)console.error(error);else console.log('PASS: real Electron startup, local assets, setup, navigation, sandbox, tabs, bookmarks, mute, focus bounds, workspaces, tab search and bookmark import.');server?.close();app.exit(error?1:0)}
 async function until(fn){for(let i=0;i<150;i++){const result=await fn();if(result)return result;await new Promise(r=>setTimeout(r,50))}throw Error('Expected app state did not appear')}
 app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load',async()=>{try{
  win.webContents.on('console-message',(_event,details)=>console.log('RENDERER:',details?.message||details));
@@ -20,11 +20,24 @@ app.on('browser-window-created',(_e,win)=>{win.webContents.once('did-finish-load
  await js('window.velora.action("go",'+JSON.stringify(url)+')');
  const page=await until(()=>webContents.getAllWebContents().find(c=>c.getURL().startsWith(url)&&c.getTitle()==='Velora smoke page'));
  assert.equal(await page.executeJavaScript('typeof require'),'undefined');
+ await js('window.velora.action("focus")');await until(()=>js('document.body.classList.contains("focus-mode")'));
+ const pageView=win.contentView.children.find(v=>v.webContents?.id===page.id);assert.ok(pageView);assert.equal(pageView.getBounds().x,0);assert.equal(pageView.getBounds().y,52);
+ await js('window.velora.action("focus")');assert.equal(pageView.getBounds().x,244);
  await js('window.velora.action("bookmark")');await until(()=>js('document.querySelectorAll("#bookmarks button").length===1'));
  await js('window.velora.action("mute")');assert.equal(page.isAudioMuted(),true);
  await js('window.velora.action("new")');await until(()=>js('document.querySelectorAll(".tab").length===2'));
  await js('document.querySelector(".tab.selected .close-tab").click()');await until(()=>js('document.querySelectorAll(".tab").length===1'));
  await js('window.velora.action("reopen")');await until(()=>js('document.querySelectorAll(".tab").length===2'));
+ await js('window.velora.action("workspace-create","Research")');await until(()=>js('document.querySelector("#workspace-select").selectedOptions[0].textContent.startsWith("Research")'));
+ assert.equal(await js('document.querySelectorAll(".tab:not([hidden])").length'),1);
+ await js('document.querySelector("#address").click();document.querySelector("#query").value="Velora smoke";document.querySelector("#query").dispatchEvent(new Event("input"))');
+ await until(()=>js('document.querySelector("#command-results button")?.textContent.includes("Velora smoke page")'));
+ await js('document.querySelector("#command-results button").click()');await until(()=>js('document.querySelector("#workspace-select").value==="personal"'));
+ const sample='<!doctype html><a href="'+url+'">Existing</a><a href="https://example.com/reading">Reading</a><a href="javascript:alert(1)">Rejected</a>';
+ const result=await js('window.velora.action("import-bookmarks",parseBookmarkHTML('+JSON.stringify(sample)+'))');assert.equal(result.added,1);
+ assert.equal(await js('document.querySelectorAll("#bookmarks button").length'),2);
+ await js('window.velora.action("workspace-move","study")');await until(()=>js('document.querySelector("#move-tab").value==="personal"'));
+ const profile=JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'velora.json'),'utf8'));assert.ok(profile.workspaces.some(w=>w.name==='Research'));assert.ok(profile.tabs.some(t=>t.workspaceId==='study'));
  finish();
  }catch(error){finish(error)}})});
 require('./main.js');

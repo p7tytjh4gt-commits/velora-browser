@@ -1,4 +1,4 @@
-# Velora 0.3 · Less friction. More flow.
+# Velora 0.4 · Less friction. More flow.
 
 A personal Electron/Chromium browser for Apple Silicon and Intel Macs, now matching the Velora website’s dark green look.
 
@@ -46,3 +46,12 @@ No extension support, cloud sync, private mode, password manager, DRM certificat
 
 ## Assets
 Control icons: Phosphor (MIT). Brand marks: Simple Icons (CC0), Phosphor and Lobe Icons (MIT); included license files are in assets. Trademarks belong to their owners. Velora’s custom icon is vector artwork rendered locally. Shortcut artwork is bundled and can load offline; actual web-page favicons depend on the site/network.
+
+## Reasons to switch: 0.4
+- Named workspaces keep separate sets of tabs and restore with your session. Create spaces and move the current tab from the workspace manager. Workspaces share cookies, sign-ins and bookmarks; they are not isolated browser profiles.
+- Command-L / Command-K searches open tabs across workspaces, saved bookmarks and browser actions. Type to filter; use arrow keys and Enter to select, or Enter with no selected result to search the web.
+- Command-Shift-F toggles Focus mode. It removes the sidebar and expands the actual webpage below a compact toolbar; the address and exit control stay accessible.
+- Import bookmarks from Chrome’s exported HTML. Link titles and HTTP/HTTPS addresses are merged locally with deduplication. Folders, passwords, history and extensions are not imported.
+- The command bar can mute other tabs or sleep quiet background pages.
+
+These are workflow and presentation advantages, not claims of better speed, security, battery life or overall compatibility than Chrome. Chrome has a mature extension ecosystem, updates and sync; those remain material gaps for Velora.
